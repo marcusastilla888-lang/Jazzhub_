@@ -1,0 +1,208 @@
+-- ================================================================= --
+--                             JAZZ HUB                              --
+--                  Blox Fruits Auto-Everything Engine               --
+-- ================================================================= --
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+----------------------------------------------------------------------
+-- SERVICES & CONSTANTS
+----------------------------------------------------------------------
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+----------------------------------------------------------------------
+-- JAZZ HUB WATERMARK UI
+----------------------------------------------------------------------
+pcall(function()
+    if CoreGui:FindFirstChild("JazzHubUI") then
+        CoreGui.JazzHubUI:Destroy()
+    end
+end)
+
+local JazzHubUI = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local TitleLabel = Instance.new("TextLabel")
+local StatusLabel = Instance.new("TextLabel")
+local UICorner = Instance.new("UICorner")
+
+JazzHubUI.Name = "JazzHubUI"
+JazzHubUI.Parent = CoreGui
+JazzHubUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = JazzHubUI
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 50)
+
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
+
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 10, 0, 5)
+TitleLabel.Size = UDim2.new(0, 200, 0, 20)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "🎷 JAZZ HUB v1.0"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
+TitleLabel.TextSize = 14
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Parent = MainFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0, 25)
+StatusLabel.Size = UDim2.new(0, 200, 0, 20)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Status: Active | Auto-Farm: ON"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 12
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+----------------------------------------------------------------------
+-- CONFIGURATION SETTINGS
+----------------------------------------------------------------------
+_G.JazzHub = {
+    -- Master Toggles
+    AutoFarm = true,
+    FastAttack = true,
+    AutoStats = true,
+    AutoRollFruit = true,
+    AutoStoreFruit = true,
+    
+    -- Farm Settings
+    FarmDistanceAbove = 8,
+    
+    -- Stat Focus Options: "Melee", "Defense", "Sword", "Gun", "Demon Fruit"
+    StatFocus = "Melee"
+}
+
+----------------------------------------------------------------------
+-- 1. ANTI-AFK PROTECTION
+----------------------------------------------------------------------
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+end)
+
+----------------------------------------------------------------------
+-- 2. FAST ATTACK ENGINE
+----------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.05) do
+        if _G.JazzHub.FastAttack and _G.JazzHub.AutoFarm then
+            pcall(function()
+                local character = LocalPlayer.Character
+                if character then
+                    local tool = character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        tool:Activate()
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+----------------------------------------------------------------------
+-- 3. AUTO STATS ALLOCATOR
+----------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.JazzHub.AutoStats then
+            pcall(function()
+                CommF:InvokeServer("AddPoint", _G.JazzHub.StatFocus, 1)
+            end)
+        end
+    end
+end)
+
+----------------------------------------------------------------------
+-- 4. AUTO FRUIT ROLLER & STORER
+----------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(5) do
+        if _G.JazzHub.AutoStoreFruit then
+            pcall(function()
+                for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+                    if item:IsA("Tool") and string.find(item.Name, "Fruit") then
+                        CommF:InvokeServer("StoreFruit", item.Name, item)
+                    end
+                end
+            end)
+        end
+        
+        if _G.JazzHub.AutoRollFruit then
+            pcall(function()
+                CommF:InvokeServer("Cousin", "Buy")
+            end)
+        end
+    end
+end)
+
+----------------------------------------------------------------------
+-- 5. TARGETING & MOB LOCATOR
+----------------------------------------------------------------------
+local function GetNearestEnemy()
+    local target = nil
+    local shortestDistance = math.huge
+
+    local enemies = Workspace:FindFirstChild("Enemies")
+    if enemies and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+
+        for _, enemy in pairs(enemies:GetChildren()) do
+            local humanoid = enemy:FindFirstChild("Humanoid")
+            local hrp = enemy:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and hrp and humanoid.Health > 0 then
+                local dist = (hrp.Position - myPos).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    target = enemy
+                end
+            end
+        end
+    end
+    return target
+end
+
+----------------------------------------------------------------------
+-- 6. MAIN AUTO FARM LOOP
+----------------------------------------------------------------------
+task.spawn(function()
+    while task.wait() do
+        if _G.JazzHub.AutoFarm then
+            pcall(function()
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = character.HumanoidRootPart
+                    local targetMob = GetNearestEnemy()
+
+                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                        local mobHrp = targetMob.HumanoidRootPart
+
+                        hrp.CFrame = mobHrp.CFrame * CFrame.new(0, _G.JazzHub.FarmDistanceAbove, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        
+                        if character:FindFirstChild("Humanoid") then
+                            character.Humanoid:ChangeState(11)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+print("[JAZZ HUB] Successfully Loaded!")
